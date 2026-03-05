@@ -21,9 +21,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: hongjiahao371/docker-manager:latest
+          platforms: linux/amd64,linux/arm64
+          tags: jvsheng/docker-manager:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
