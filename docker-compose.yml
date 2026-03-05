@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  docker-manager:
+    build: .
+    container_name: docker-manager
+    ports:
+      - "8888:8888"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped

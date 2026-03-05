@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker容器管理器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .check-update-btn {
+            background: #ff9800;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .check-update-btn:hover {
+            background: #f57c00;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+        }
+
+        .check-update-btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .refresh-btn, .create-btn {
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .refresh-btn {
+            background: #667eea;
+        }
+
+        .refresh-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .create-btn {
+            background: #28a745;
+        }
+
+        .create-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+
+        .container-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .container-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+
+        .container-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+
+        .container-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .container-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            word-break: break-all;
+        }
+
+        .container-id {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .status-running {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-stopped {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .container-image {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 12px;
+            word-break: break-all;
+        }
+
+        .container-ports {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 16px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-start {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-start:hover {
+            background: #218838;
+        }
+
+        .btn-stop {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-stop:hover {
+            background: #c82333;
+        }
+
+        .btn-restart {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-restart:hover {
+            background: #e0a800;
+        }
+
+        .btn-logs {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-logs:hover {
+            background: #138496;
+        }
+
+        .btn-update {
+            background: #6f42c1;
+            color: white;
+        }
+
+        .btn-update:hover {
+            background: #5a32a3;
+        }
+
+        .update-badge {
+            display: inline-block;
+            background: #ffc107;
+            color: #333;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .create-modal .form-group {
+            margin-bottom: 20px;
+        }
+
+        .create-modal .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .create-modal .form-group input,
+        .create-modal .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .create-modal .form-group input:focus,
+        .create-modal .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .create-modal .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .create-modal .compose-textarea {
+            min-height: 200px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .create-modal .mode-switch {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .create-modal .mode-label {
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .create-modal .mode-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .create-modal .mode-btn:hover {
+            border-color: #667eea;
+        }
+
+        .create-modal .mode-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .volumes-info {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 12px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 3px solid #667eea;
+        }
+
+        .volumes-item {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+
+        .volumes-type {
+            font-weight: 500;
+            min-width: 50px;
+            color: #667eea;
+        }
+
+        .create-modal .form-hint {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .create-modal .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .create-modal .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+
+        .create-modal .btn-cancel:hover {
+            background: #5a6268;
+        }
+
+        .create-modal .btn-submit {
+            background: #28a745;
+            color: white;
+        }
+
+        .create-modal .btn-submit:hover {
+            background: #218838;
+        }
+
+        .create-modal .btn-submit:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 24px;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 900px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .modal-header h2 {
+            color: #333;
+            font-size: 20px;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .modal-body {
+            flex: 1;
+            overflow: auto;
+            background: #f5f5f5;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            color: #333;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state h3 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐳 Docker容器管理器</h1>
+            <div class="header-actions">
+                <div class="search-box">
+                    <input type="text" id="search-input" class="search-input" placeholder="🔍 搜索容器名称..." oninput="filterContainers()">
+                </div>
+                <button class="check-update-btn" id="check-update-btn" onclick="checkUpdates()">🔔 检测更新</button>
+                <button class="create-btn" onclick="showCreateModal()">➕ 新建容器</button>
+                <button class="refresh-btn" onclick="loadContainers()">🔄 刷新</button>
+            </div>
+        </div>
+
+        <div id="container-grid" class="container-grid">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+
+    <!-- 日志模态框 -->
+    <div id="logs-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="logs-title">容器日志</h2>
+                <span class="close" onclick="closeLogsModal()">&times;</span>
+            </div>
+            <div id="logs-content" class="modal-body">
+                加载日志中...
+            </div>
+        </div>
+    </div>
+
+    <!-- 新建容器模态框 -->
+    <div id="create-modal" class="modal create-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>➕ 新建容器</h2>
+                <span class="close" onclick="closeCreateModal()">&times;</span>
+            </div>
+            <div class="modal-body" style="background: white; padding: 0;">
+                <!-- 模式切换 -->
+                <div class="mode-switch">
+                    <button class="mode-btn active" id="mode-simple" onclick="switchMode('simple')">🐳 单容器模式</button>
+                    <button class="mode-btn" id="mode-compose" onclick="switchMode('compose')">📦 Docker Compose 模式</button>
+                </div>
+
+                <!-- 单容器模式表单 -->
+                <div id="simple-mode-form">
+                    <div class="form-group">
+                        <label for="image-input">镜像名称 *</label>
+                        <input type="text" id="image-input" placeholder="例如: nginx:latest 或 redis:7">
+                        <div class="form-hint">输入镜像名称，包含版本标签（可选）</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="name-input">容器名称 *</label>
+                        <input type="text" id="name-input" placeholder="例如: my-nginx">
+                        <div class="form-hint">容器的唯一名称</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="ports-input">端口映射</label>
+                        <input type="text" id="ports-input" placeholder="例如: 8080:80, 8443:443">
+                        <div class="form-hint">格式: 主机端口:容器端口，多个映射用逗号分隔</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="volumes-input">卷挂载</label>
+                        <input type="text" id="volumes-input" placeholder="例如: /data/app:/app, /data/config:/etc/nginx">
+                        <div class="form-hint">格式: 主机路径:容器路径[:模式]，多个挂载用逗号分隔</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="env-input">环境变量</label>
+                        <textarea id="env-input" placeholder="例如: TZ=Asia/Shanghai&#10;MYSQL_ROOT_PASSWORD=123456"></textarea>
+                        <div class="form-hint">每行一个环境变量，格式: KEY=VALUE</div>
+                    </div>
+                </div>
+
+                <!-- Docker Compose 模式表单 -->
+                <div id="compose-mode-form" style="display: none;">
+                    <div class="form-group">
+                        <label for="compose-input">Docker Compose 文件内容 *</label>
+                        <textarea id="compose-input" class="compose-textarea" placeholder="version: '3.8'
+services:
+  nginx:
+    image: nginx:latest
+    ports:
+      - '8080:80'
+    volumes:
+      - ./data:/usr/share/nginx/html
+    restart: unless-stopped"></textarea>
+                        <div class="form-hint">粘贴完整的 docker-compose.yml 文件内容</div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-cancel" onclick="closeCreateModal()">取消</button>
+                    <button class="btn btn-submit" id="create-submit-btn" onclick="createContainer()">创建容器</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量存储容器列表
+        let allContainers = [];
+
+        // 加载容器列表
+        async function loadContainers() {
+            const grid = document.getElementById('container-grid');
+            grid.innerHTML = '<div class="loading">加载中...</div>';
+
+            try {
+                const response = await fetch('/api/containers');
+                const data = await response.json();
+
+                if (data.error) {
+                    grid.innerHTML = `<div class="error-message">${data.error}</div>`;
+                    return;
+                }
+
+                if (!data.containers || data.containers.length === 0) {
+                    grid.innerHTML = `
+                        <div class="empty-state">
+                            <h3>暂无容器</h3>
+                            <p>您的Docker环境中没有运行任何容器</p>
+                        </div>
+                    `;
+                    allContainers = [];
+                    return;
+                }
+
+                // 保存容器列表到全局变量
+                allContainers = data.containers;
+
+                // 渲染容器列表
+                renderContainers(allContainers);
+
+            } catch (error) {
+                grid.innerHTML = `<div class="error-message">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 渲染容器列表
+        function renderContainers(containers) {
+            const grid = document.getElementById('container-grid');
+
+            if (!containers || containers.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <h3>未找到容器</h3>
+                        <p>没有匹配的容器</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = containers.map(container => `
+                <div class="container-card">
+                    <div class="container-header">
+                        <div>
+                            <div class="container-name">
+                                ${escapeHtml(container.name)}
+                                ${container.has_update ? '<span class="update-badge">有更新</span>' : ''}
+                            </div>
+                            <div class="container-id">ID: ${container.id}</div>
+                        </div>
+                        <span class="status-badge ${container.status === '运行中' ? 'status-running' : 'status-stopped'}">
+                            ${container.status}
+                        </span>
+                    </div>
+                    <div class="container-image">镜像: ${escapeHtml(container.image)}</div>
+                    ${container.ports ? `<div class="container-ports">端口: ${formatPorts(container.ports)}</div>` : ''}
+                    ${container.volumes && container.volumes.length > 0 ? `
+                        <div class="volumes-info">
+                            <div style="font-weight: 500; margin-bottom: 4px;">📂 挂载点:</div>
+                            ${container.volumes.map(vol => `
+                                <div class="volumes-item">
+                                    <span class="volumes-type">${vol.type}:</span>
+                                    <span>${escapeHtml(vol.source || '匿名卷')} → ${escapeHtml(vol.destination)} (${vol.mode})</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    <div class="actions">
+                        <button class="btn btn-start" onclick="startContainer('${container.id}')">▶ 启动</button>
+                        <button class="btn btn-stop" onclick="stopContainer('${container.id}')">⏹ 停止</button>
+                        <button class="btn btn-restart" onclick="restartContainer('${container.id}')">🔄 重启</button>
+                        <button class="btn btn-logs" onclick="showLogs('${container.id}', '${escapeHtml(container.name)}')">📋 日志</button>
+                        <button class="btn btn-update" onclick="updateContainer('${container.id}', '${escapeHtml(container.name)}')">⬆ 更新</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 过滤容器列表
+        function filterContainers() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+
+            if (!searchTerm) {
+                renderContainers(allContainers);
+                return;
+            }
+
+            const filtered = allContainers.filter(container => {
+                return container.name.toLowerCase().includes(searchTerm) ||
+                       container.id.toLowerCase().includes(searchTerm) ||
+                       container.image.toLowerCase().includes(searchTerm);
+            });
+
+            renderContainers(filtered);
+        }
+
+        // 检测所有容器更新
+        async function checkUpdates() {
+            const btn = document.getElementById('check-update-btn');
+            const originalText = btn.textContent;
+            btn.textContent = '🔍 检测中...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/check-updates', { method: 'POST' });
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`✅ ${data.message}\n\n有更新的容器：\n${data.update_list.map(u => `• ${u.container_name} (${u.image})`).join('\n') || '无'}`);
+
+                    // 刷新容器列表以显示更新状态
+                    loadContainers();
+                } else {
+                    alert('检测更新失败: ' + (data.error || '未知错误'));
+                }
+            } catch (error) {
+                alert('检测更新失败: ' + error.message);
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // 启动容器
+        async function startContainer(containerId) {
+            try {
+                const response = await fetch(`/api/container/${containerId}/start`, { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    alert(data.message);
+                    loadContainers();
+                } else {
+                    alert('启动失败: ' + (data.error || '未知错误'));
+                }
+            } catch (error) {
+                alert('启动失败: ' + error.message);
+            }
+        }
+
+        // 停止容器
+        async function stopContainer(containerId) {
+            if (!confirm('确定要停止这个容器吗？')) return;
+
+            try {
+                const response = await fetch(`/api/container/${containerId}/stop`, { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    alert(data.message);
+                    loadContainers();
+                } else {
+                    alert('停止失败: ' + (data.error || '未知错误'));
+                }
+            } catch (error) {
+                alert('停止失败: ' + error.message);
+            }
+        }
+
+        // 重启容器
+        async function restartContainer(containerId) {
+            if (!confirm('确定要重启这个容器吗？')) return;
+
+            try {
+                const response = await fetch(`/api/container/${containerId}/restart`, { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    alert(data.message);
+                    loadContainers();
+                } else {
+                    alert('重启失败: ' + (data.error || '未知错误'));
+                }
+            } catch (error) {
+                alert('重启失败: ' + error.message);
+            }
+        }
+
+        // 显示日志
+        async function showLogs(containerId, containerName) {
+            const modal = document.getElementById('logs-modal');
+            const title = document.getElementById('logs-title');
+            const content = document.getElementById('logs-content');
+
+            title.textContent = `📋 ${containerName} - 日志`;
+            content.textContent = '加载日志中...';
+            modal.style.display = 'block';
+
+            try {
+                const response = await fetch(`/api/container/${containerId}/logs?lines=500`);
+                const data = await response.json();
+                if (data.error) {
+                    content.textContent = '加载失败: ' + data.error;
+                } else {
+                    content.textContent = data.logs || '暂无日志';
+                }
+            } catch (error) {
+                content.textContent = '加载失败: ' + error.message;
+            }
+        }
+
+        // 关闭日志模态框
+        function closeLogsModal() {
+            document.getElementById('logs-modal').style.display = 'none';
+        }
+
+        // 更新容器
+        async function updateContainer(containerId, containerName) {
+            if (!confirm(`确定要更新容器 "${containerName}" 吗？\n\n更新过程：\n1. 拉取最新镜像\n2. 停止并删除旧容器\n3. 重新创建容器\n\n⚠️ 注意：更新期间容器会短暂不可用`)) return;
+
+            const originalText = event.target.textContent;
+            event.target.textContent = '⏳ 更新中...';
+            event.target.disabled = true;
+
+            try {
+                // 先拉取镜像
+                const pullResponse = await fetch(`/api/container/${containerId}/pull`, { method: 'POST' });
+                const pullData = await pullResponse.json();
+                
+                if (!pullData.success) {
+                    alert('拉取镜像失败: ' + (pullData.error || '未知错误'));
+                    event.target.textContent = originalText;
+                    event.target.disabled = false;
+                    return;
+                }
+                
+                alert(pullData.message + '\n正在重建容器...');
+                
+                // 然后更新容器
+                const updateResponse = await fetch(`/api/container/${containerId}/update`, { method: 'POST' });
+                const updateData = await updateResponse.json();
+                
+                if (updateData.success) {
+                    alert('✅ ' + updateData.message);
+                    loadContainers();
+                } else {
+                    alert('更新失败: ' + (updateData.error || '未知错误'));
+                }
+            } catch (error) {
+                alert('更新失败: ' + error.message);
+            } finally {
+                event.target.textContent = originalText;
+                event.target.disabled = false;
+            }
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const logsModal = document.getElementById('logs-modal');
+            const createModal = document.getElementById('create-modal');
+            if (event.target === logsModal) {
+                logsModal.style.display = 'none';
+            }
+            if (event.target === createModal) {
+                createModal.style.display = 'none';
+            }
+        }
+
+        // HTML转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 每行一个环境变量，格式: KEY=VALUE
+        // 格式化端口信息
+        function formatPorts(ports) {
+            if (!ports) return '无';
+            const portList = [];
+            for (const [containerPort, hostBindings] of Object.entries(ports)) {
+                if (hostBindings && hostBindings.length > 0) {
+                    hostBindings.forEach(binding => {
+                        portList.push(`${binding.HostPort}:${containerPort}`);
+                    });
+                } else {
+                    portList.push(containerPort);
+                }
+            }
+            return portList.join(', ') || '无';
+        }
+
+        // 显示新建容器模态框
+        function showCreateModal() {
+            const modal = document.getElementById('create-modal');
+            modal.style.display = 'block';
+
+            // 清空表单
+            document.getElementById('image-input').value = '';
+            document.getElementById('name-input').value = '';
+            document.getElementById('ports-input').value = '';
+            document.getElementById('volumes-input').value = '';
+            document.getElementById('env-input').value = '';
+            document.getElementById('compose-input').value = '';
+
+            // 默认切换单容器模式
+            switchMode('simple');
+
+            // 聚焦第一个输入框
+            document.getElementById('image-input').focus();
+        }
+
+        // 切换创建模式
+        function switchMode(mode) {
+            const simpleForm = document.getElementById('simple-mode-form');
+            const composeForm = document.getElementById('compose-mode-form');
+            const simpleBtn = document.getElementById('mode-simple');
+            const composeBtn = document.getElementById('mode-compose');
+
+            if (mode === 'simple') {
+                simpleForm.style.display = 'block';
+                composeForm.style.display = 'none';
+                simpleBtn.classList.add('active');
+                composeBtn.classList.remove('active');
+                document.getElementById('create-submit-btn').textContent = '创建容器';
+            } else {
+                simpleForm.style.display = 'none';
+                composeForm.style.display = 'block';
+                simpleBtn.classList.remove('active');
+                composeBtn.classList.add('active');
+                document.getElementById('create-submit-btn').textContent = '部署 Compose';
+            }
+        }
+
+        // 关闭新建容器模态框
+        function closeCreateModal() {
+            document.getElementById('create-modal').style.display = 'none';
+        }
+
+        // 创建容器 / 部署 Compose
+        async function createContainer() {
+            const isComposeMode = document.getElementById('compose-mode-form').style.display !== 'none';
+
+            // 禁用提交按钮
+            const submitBtn = document.getElementById('create-submit-btn');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = isComposeMode ? '部署中...' : '创建中...';
+            submitBtn.disabled = true;
+
+            try {
+                if (isComposeMode) {
+                    // Docker Compose 模式
+                    const composeContent = document.getElementById('compose-input').value.trim();
+
+                    if (!composeContent) {
+                        alert('请输入 Docker Compose 文件内容');
+                        submitBtn.textContent = originalText;
+                        submitBtn.disabled = false;
+                        return;
+                    }
+
+                    const response = await fetch('/api/compose/deploy', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            compose_content: composeContent
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        closeCreateModal();
+                        loadContainers(); // 刷新容器列表
+                    } else {
+                        alert('部署失败: ' + (data.error || '未知错误'));
+                    }
+                } else {
+                    // 单容器模式
+                    const image = document.getElementById('image-input').value.trim();
+                    const name = document.getElementById('name-input').value.trim();
+                    const ports = document.getElementById('ports-input').value.trim();
+                    const volumes = document.getElementById('volumes-input').value.trim();
+                    const env = document.getElementById('env-input').value.trim();
+
+                    // 验证必填字段
+                    if (!image) {
+                        alert('请输入镜像名称');
+                        submitBtn.textContent = originalText;
+                        submitBtn.disabled = false;
+                        return;
+                    }
+
+                    if (!name) {
+                        alert('请输入容器名称');
+                        submitBtn.textContent = originalText;
+                        submitBtn.disabled = false;
+                        return;
+                    }
+
+                    const response = await fetch('/api/container/create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            image: image,
+                            name: name,
+                            ports: ports,
+                            volumes: volumes,
+                            env: env
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        closeCreateModal();
+                        loadContainers(); // 刷新容器列表
+                    } else {
+                        alert('创建失败: ' + (data.error || '未知错误'));
+                    }
+                }
+            } catch (error) {
+                alert(isComposeMode ? '部署失败: ' : '创建失败: ' + error.message);
+            } finally {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+        }
+
+        // 页面加载时自动加载容器列表
+        document.addEventListener('DOMContentLoaded', loadContainers);
+
+        // 每30秒自动刷新
+        setInterval(loadContainers, 30000);
+    </script>
+</body>
+</html>
